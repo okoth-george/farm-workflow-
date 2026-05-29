@@ -1,7 +1,11 @@
 import json
+import sys
 import urllib.request
 import urllib.error
 import os
+import time
+
+from farmflow import settings
 
 
 def generate_farm_plan(farm_data: dict) -> dict:
@@ -43,30 +47,62 @@ Generate a comprehensive farm plan. Respond ONLY with a valid JSON object (no ma
 
 Be specific to Kenya/East Africa. Use realistic KES prices for 2024. Include 6-10 planting schedule items covering the full season, 5-8 input requirements, 3-5 weather risks, and 2-3 purchase orders.
 """
+    
+    
 
     payload = json.dumps({
-        "model": "claude-sonnet-4-20250514",
-        "max_tokens": 2000,
-        "messages": [{"role": "user", "content": prompt}]
+    "contents": [{
+        "parts": [{"text": prompt}]
+    }],
+    "generationConfig": {
+        "responseMimeType": "application/json"
+    }
+
     }).encode("utf-8")
 
-    API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+  
+
+    # Pick up the Gemini API key from environment variables
+    API_KEY = settings.GEMINI_API_KEY
+    
+    # Gemini API endpoint structure using the state-of-the-art gemini-2.5-flash model
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
 
     req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages",
+        url,
         data=payload,
         headers={
-            "Content-Type": "application/json",
-            "anthropic-version": "2023-06-01",
-            "x-api-key": API_KEY
+            "Content-Type": "application/json"
         },
         method="POST"
     )
 
+
+    try:
+        # CRITICAL FIX: Set timeout=15 seconds. This breaks any 5-minute endless loading loops!
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read().decode())
+            raw = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+            return json.loads(raw)
+
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8')
+        print(f"❌ Gemini API HTTP Error ({e.code}): {error_body}", file=sys.stderr)
+        # Display the real error message on screen
+        return {"error": f"Gemini Rejected Request: {error_body}"}
+
+    except Exception as e:
+        print(f"❌ System Network Exception: {str(e)}", file=sys.stderr)
+        return {"error": f"Failed due to network exception: {str(e)}"}
+
+
+
     try:
         with urllib.request.urlopen(req) as resp:
             data = json.loads(resp.read().decode())
-            raw = data["content"][0]["text"].strip()
+            #raw = data["content"][0]["text"].strip()
+            # Extract raw text out of Gemini's specific response tree structure
+            raw = data["candidates"][0]["content"]["parts"][0]["text"].strip()
             # Strip markdown fences if present
             if raw.startswith("```"):
                 raw = raw.split("```")[1]

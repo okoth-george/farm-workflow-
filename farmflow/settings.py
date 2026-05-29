@@ -122,4 +122,4 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")  # Set via env or hardcode for demo
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")  # Set via env or hardcode for demo
