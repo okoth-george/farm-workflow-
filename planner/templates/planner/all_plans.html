@@ -1,0 +1,52 @@
+{% extends "planner/base.html" %}
+{% block title %}All Plans – FarmFlow{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <h1>All Farm Plans</h1>
+  <p>{{ plans|length }} plan{{ plans|length|pluralize }} generated</p>
+</div>
+
+<div class="container">
+  <div style="display:flex;justify-content:flex-end;margin-bottom:1.5rem;">
+    <a href="/plan/new/" class="btn btn-primary">＋ New Plan</a>
+  </div>
+  {% if plans %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.25rem;">
+    {% for plan in plans %}
+    <a href="/plan/{{ plan.pk }}/" style="text-decoration:none;">
+      <div class="card" style="cursor:pointer;transition:transform .2s,box-shadow .2s;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(44,26,14,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+          <div>
+            <div style="font-size:2rem;margin-bottom:.4rem;">
+              {% if plan.crop == 'maize' %}🌽
+              {% elif plan.crop == 'tomatoes' %}🍅
+              {% elif plan.crop == 'beans' %}🫘
+              {% elif plan.crop == 'potatoes' %}🥔
+              {% elif plan.crop == 'kale' %}🥬
+              {% elif plan.crop == 'cabbage' %}🥦
+              {% else %}🌱{% endif %}
+            </div>
+            <div style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--bark);">{{ plan.farmer_name }}</div>
+            <div style="font-size:.85rem;color:var(--sage);margin-top:.2rem;">{{ plan.get_crop_display }} · {{ plan.location }}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:.85rem;color:var(--leaf);font-weight:600;">{{ plan.land_size }} ac</div>
+            <div style="font-size:.78rem;color:#aaa;">KES {{ plan.budget|floatformat:0 }}</div>
+          </div>
+        </div>
+        <div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--mist);font-size:.78rem;color:#bbb;">
+          {{ plan.created_at|date:"M j, Y" }} · {{ plan.get_season_display }}
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:4rem;color:#aaa;">
+    <div style="font-size:3rem;margin-bottom:1rem;">🌱</div>
+    <p>No plans yet. <a href="/plan/new/" style="color:var(--leaf);">Create your first plan →</a></p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

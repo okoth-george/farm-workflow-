@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}FarmFlow{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --soil:    #2C1A0E;
+      --bark:    #4A2E1A;
+      --clay:    #8B4513;
+      --wheat:   #D4A853;
+      --straw:   #F0D89A;
+      --sage:    #6B8C5A;
+      --leaf:    #3D6B35;
+      --mist:    #F5F0E8;
+      --cream:   #FDFAF4;
+      --white:   #FFFFFF;
+      --danger:  #C0392B;
+      --warn:    #E67E22;
+      --ok:      #27AE60;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--soil);
+      min-height: 100vh;
+    }
+
+    /* NAV */
+    nav {
+      background: var(--soil);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      position: sticky; top: 0; z-index: 100;
+      border-bottom: 3px solid var(--wheat);
+    }
+    .nav-brand {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.6rem;
+      color: var(--wheat);
+      text-decoration: none;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .nav-brand span { font-size: 1.4rem; }
+    .nav-links { display: flex; gap: 1.5rem; list-style: none; }
+    .nav-links a {
+      color: var(--straw);
+      text-decoration: none;
+      font-size: .9rem;
+      font-weight: 500;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      transition: color .2s;
+    }
+    .nav-links a:hover { color: var(--wheat); }
+
+    /* HERO BANNER */
+    .page-hero {
+      background: linear-gradient(135deg, var(--bark) 0%, var(--soil) 60%, var(--leaf) 100%);
+      padding: 3rem 2rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .page-hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: radial-gradient(circle at 20% 50%, rgba(107,140,90,.2) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(212,168,83,.15) 0%, transparent 40%);
+    }
+    .page-hero h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      color: var(--straw);
+      position: relative; z-index: 1;
+    }
+    .page-hero p {
+      color: rgba(240,216,154,.75);
+      margin-top: .5rem;
+      font-size: 1rem;
+      position: relative; z-index: 1;
+    }
+
+    /* CONTAINERS */
+    .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    /* CARDS */
+    .card {
+      background: var(--white);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 12px rgba(44,26,14,.08);
+      border: 1px solid rgba(212,168,83,.2);
+    }
+    .card-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.2rem;
+      color: var(--bark);
+      margin-bottom: 1rem;
+      padding-bottom: .5rem;
+      border-bottom: 2px solid var(--straw);
+      display: flex; align-items: center; gap: .5rem;
+    }
+
+    /* BUTTONS */
+    .btn {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .65rem 1.4rem;
+      border: none; border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .9rem; font-weight: 500;
+      cursor: pointer; text-decoration: none;
+      transition: all .2s;
+    }
+    .btn-primary {
+      background: var(--leaf);
+      color: var(--white);
+    }
+    .btn-primary:hover { background: var(--sage); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(61,107,53,.3); }
+    .btn-secondary {
+      background: var(--wheat);
+      color: var(--soil);
+    }
+    .btn-secondary:hover { background: var(--straw); }
+    .btn-outline {
+      background: transparent;
+      color: var(--leaf);
+      border: 2px solid var(--leaf);
+    }
+    .btn-outline:hover { background: var(--leaf); color: var(--white); }
+
+    /* FORM */
+    .form-group { margin-bottom: 1.25rem; }
+    .form-group label {
+      display: block;
+      font-size: .85rem; font-weight: 500;
+      color: var(--bark);
+      margin-bottom: .4rem;
+      text-transform: uppercase; letter-spacing: .06em;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: .7rem 1rem;
+      border: 2px solid rgba(212,168,83,.35);
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .95rem;
+      background: var(--cream);
+      color: var(--soil);
+      transition: border-color .2s;
+      outline: none;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      border-color: var(--leaf);
+      background: var(--white);
+    }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.5rem; }
+
+    /* BADGE */
+    .badge {
+      display: inline-block;
+      padding: .2rem .65rem;
+      border-radius: 20px;
+      font-size: .78rem; font-weight: 500;
+    }
+    .badge-high   { background: rgba(192,57,43,.12);  color: var(--danger); }
+    .badge-medium { background: rgba(230,126,34,.12); color: var(--warn);   }
+    .badge-low    { background: rgba(39,174,96,.12);  color: var(--ok);     }
+
+    /* TABLE */
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    thead th {
+      background: var(--mist);
+      color: var(--bark);
+      font-weight: 500;
+      text-align: left;
+      padding: .7rem 1rem;
+      font-size: .8rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    tbody td { padding: .7rem 1rem; border-bottom: 1px solid rgba(212,168,83,.15); }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: var(--mist); }
+
+    /* TIMELINE */
+    .timeline { position: relative; padding-left: 2rem; }
+    .timeline::before {
+      content: '';
+      position: absolute; left: .6rem; top: 0; bottom: 0;
+      width: 2px; background: linear-gradient(to bottom, var(--leaf), var(--straw));
+    }
+    .timeline-item { position: relative; margin-bottom: 1.5rem; }
+    .timeline-dot {
+      position: absolute; left: -1.95rem; top: .3rem;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--wheat);
+      border: 2px solid var(--leaf);
+    }
+    .timeline-week {
+      font-size: .75rem; font-weight: 700; color: var(--sage);
+      text-transform: uppercase; letter-spacing: .1em;
+    }
+    .timeline-activity { font-weight: 500; color: var(--bark); margin: .1rem 0; }
+    .timeline-details { font-size: .85rem; color: #777; }
+    .timeline-cost { font-size: .8rem; color: var(--leaf); font-weight: 600; margin-top: .2rem; }
+
+    /* STAT BOXES */
+    .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 1rem; }
+    .stat-box {
+      background: var(--white);
+      border: 1px solid rgba(212,168,83,.25);
+      border-radius: 10px;
+      padding: 1.2rem 1.5rem;
+      text-align: center;
+    }
+    .stat-value {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.8rem;
+      color: var(--leaf);
+      font-weight: 700;
+    }
+    .stat-label { font-size: .78rem; color: #888; text-transform: uppercase; letter-spacing: .06em; margin-top: .2rem; }
+
+    /* FOOTER */
+    footer {
+      background: var(--soil);
+      color: rgba(240,216,154,.6);
+      text-align: center;
+      padding: 1.5rem;
+      font-size: .85rem;
+      margin-top: 4rem;
+      border-top: 3px solid var(--wheat);
+    }
+
+    @media(max-width:640px){
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+  {% block extra_styles %}{% endblock %}
+</head>
+<body>
+<nav>
+  <a class="nav-brand" href="/"><span>🌾</span> FarmFlow</a>
+  <ul class="nav-links">
+    <li><a href="/">Home</a></li>
+    <li><a href="/plan/new/">New Plan</a></li>
+    <li><a href="/plans/">All Plans</a></li>
+  </ul>
+</nav>
+
+{% block content %}{% endblock %}
+
+<footer>
+  <p>🌱 FarmFlow — Smallholder Farm Input Planner &nbsp;·&nbsp; Built for Kenyan Farmers</p>
+</footer>
+</body>
+</html>
