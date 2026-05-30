@@ -30,7 +30,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 #DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "t")
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ["onrender.com", "localhost", "127.0.0.1"]
+ALLOWED_HOSTS = [".onrender.com"]
 
 
 # Application definition
