@@ -72,8 +72,10 @@
     .page-hero::before {
       content: '';
       position: absolute; inset: 0;
+      z-index: 0;
       background-image: radial-gradient(circle at 20% 50%, rgba(107,140,90,.2) 0%, transparent 50%),
                         radial-gradient(circle at 80% 20%, rgba(212,168,83,.15) 0%, transparent 40%);
+      pointer-events: none;
     }
     .page-hero h1 {
       font-family: 'Playfair Display', serif;

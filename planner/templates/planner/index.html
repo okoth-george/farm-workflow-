@@ -8,11 +8,11 @@
     AI-powered season planning for smallholder farmers.<br>
     Enter your farm details — get a full planting schedule, input budget & supplier orders in seconds.
   </p>
-  <div style="margin-top:2rem;display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
-    <a href="/plan/new/" class="btn btn-secondary" style="font-size:1rem;padding:.8rem 2rem;">
+  <div style="margin-top:2rem;display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;position:relative;z-index:1;">
+    <a href="{% url 'new_plan' %}" class="btn btn-secondary" style="font-size:1rem;padding:.8rem 2rem;">
       ＋ Create Farm Plan
     </a>
-    <a href="/plans/" class="btn btn-outline" style="font-size:1rem;padding:.8rem 2rem;border-color:var(--straw);color:var(--straw);">
+    <a href="{% url 'all_plans' %}" class="btn btn-outline" style="font-size:1rem;padding:.8rem 2rem;border-color:var(--straw);color:var(--straw);">
       View All Plans
     </a>
   </div>
@@ -24,7 +24,6 @@
     <h2 style="font-family:'Playfair Display',serif;font-size:1.8rem;color:var(--bark);">How it works</h2>
   </div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem;margin-bottom:3rem;">
-    {% for step in "123" %}{% endfor %}
     <div class="card" style="text-align:center;">
       <div style="font-size:2.5rem;margin-bottom:.75rem;">📋</div>
       <h3 style="font-family:'Playfair Display',serif;color:var(--bark);margin-bottom:.5rem;">1. Enter Farm Details</h3>
@@ -33,7 +32,7 @@
     <div class="card" style="text-align:center;">
       <div style="font-size:2.5rem;margin-bottom:.75rem;">🤖</div>
       <h3 style="font-family:'Playfair Display',serif;color:var(--bark);margin-bottom:.5rem;">2. AI Generates Plan</h3>
-      <p style="font-size:.9rem;color:#666;">Claude AI builds a week-by-week schedule, input list and risk assessment.</p>
+      <p style="font-size:.9rem;color:#666;">AI builds a week-by-week schedule, input list and risk assessment.</p>
     </div>
     <div class="card" style="text-align:center;">
       <div style="font-size:2.5rem;margin-bottom:.75rem;">🛒</div>
@@ -46,8 +45,10 @@
   <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--bark);margin-bottom:1.25rem;">Recent Plans</h2>
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;">
     {% for plan in recent_plans %}
-    <a href="/plan/{{ plan.pk }}/" style="text-decoration:none;">
-      <div class="card" style="cursor:pointer;transition:transform .2s,box-shadow .2s;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(44,26,14,.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+    <a href="{% url 'plan_detail' plan.pk %}" style="text-decoration:none;">
+      <div class="card" style="cursor:pointer;transition:transform .2s,box-shadow .2s;"
+           onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(44,26,14,.12)'"
+           onmouseout="this.style.transform='';this.style.boxShadow=''">
         <div style="font-size:1.5rem;margin-bottom:.5rem;">
           {% if plan.crop == 'maize' %}🌽
           {% elif plan.crop == 'tomatoes' %}🍅
