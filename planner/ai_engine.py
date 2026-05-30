@@ -54,6 +54,15 @@ Be specific to Kenya/East Africa. Use realistic KES prices for 2024. Include 6-1
     "contents": [{
         "parts": [{"text": prompt}]
     }],
+    "systemInstruction": {
+            "parts": [{
+                "text": (
+                    "You are a strict JSON generator. You must output a single valid JSON object. "
+                    "Never include conversational preamble, markdown blocks, or trailing commas. "
+                    "If you include quotes inside a text field value, you must escape them with a backslash (\\\")."
+                )
+            }]
+        },
     "generationConfig": {
         "responseMimeType": "application/json"
     }
@@ -104,12 +113,25 @@ Be specific to Kenya/East Africa. Use realistic KES prices for 2024. Include 6-1
             # Extract raw text out of Gemini's specific response tree structure
             raw = data["candidates"][0]["content"]["parts"][0]["text"].strip()
             # Strip markdown fences if present
+            
             if raw.startswith("```"):
                 raw = raw.split("```")[1]
                 if raw.startswith("json"):
                     raw = raw[4:]
-            return json.loads(raw.strip())
+            
+            cleaned_json_string = raw.strip()
+            return json.loads(cleaned_json_string)
+        
+    except json.JSONDecodeError as je:
+        # Catch exactly where it failed so you can inspect the raw text if it hits again
+        print(f"❌ JSON Parsing failed at line {je.lineno}, col {je.colno}: {je.msg}", file=sys.stderr)
+        print(f"📋 Raw text body attempted to parse:\n{raw}", file=sys.stderr)
+        return {"error": f"Internal formatting validation error: {je.msg}"}
+
     except Exception as e:
+        print(f"❌ System Exception: {str(e)}", file=sys.stderr)
+        return {"error": f"Failed due to system network exception: {str(e)}"}    
+   
         # Return structured fallback on error
         return {
             "planting_schedule": [
