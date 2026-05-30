@@ -29,7 +29,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 #DEBUG = True
 DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "t")
 
-ALLOWED_HOSTS = ["onrender.com", "localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["farmflow.onrender.com", "localhost", "127.0.0.1"]
 
 
 # Application definition
