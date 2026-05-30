@@ -98,11 +98,10 @@ def plan_detail(request, pk):
 
 @require_GET
 def plan_status(request, pk):
-    """HTMX polls this endpoint to check if AI is done."""
+    """HTMX polls this endpoint every 3s to check if AI is done."""
     plan = get_object_or_404(FarmPlan, pk=pk)
 
     if plan.status == 'complete':
-        # Return the full results HTML snippet
         planting_schedule = json.loads(plan.planting_schedule) if plan.planting_schedule else []
         input_requirements = json.loads(plan.input_requirements) if plan.input_requirements else []
         weather_risks = json.loads(plan.weather_risks) if plan.weather_risks else []
@@ -110,7 +109,7 @@ def plan_status(request, pk):
         total_cost = sum(item.get('cost_kes', 0) for item in planting_schedule)
         total_inputs = sum(item.get('cost_kes', 0) for item in input_requirements)
 
-        return render(request, 'planner/partials/plan_results.html', {
+        response = render(request, 'planner/partials/plan_results.html', {
             'plan': plan,
             'planting_schedule': planting_schedule,
             'input_requirements': input_requirements,
@@ -119,21 +118,29 @@ def plan_status(request, pk):
             'total_cost': total_cost,
             'total_inputs': total_inputs,
         })
+        # Stop HTMX polling — we're done
+        response['HX-Trigger'] = 'planComplete'
+        return response
 
     elif plan.status == 'error':
-        return HttpResponse('''
+        response = HttpResponse('''
             <div style="text-align:center;padding:3rem;color:#C0392B;">
                 <div style="font-size:2.5rem;margin-bottom:1rem;">⚠️</div>
                 <h3>AI generation failed</h3>
                 <p style="color:#888;margin-top:.5rem;">Please check your API key and try again.</p>
-                <a href="/plan/new/" style="display:inline-block;margin-top:1rem;padding:.6rem 1.5rem;background:#3D6B35;color:#fff;border-radius:8px;text-decoration:none;">Try Again</a>
+                <a href="/plan/new/" style="display:inline-block;margin-top:1rem;padding:.6rem 1.5rem;
+                   background:#3D6B35;color:#fff;border-radius:8px;text-decoration:none;">Try Again</a>
             </div>
         ''')
+        response['HX-Trigger'] = 'planComplete'
+        return response
 
     else:
-        # Still pending/processing — return spinner (HTMX will poll again)
-        return HttpResponse('''
-            <div hx-get="" hx-trigger="every 3s" hx-swap="outerHTML"
+        # Still pending/processing — keep returning spinner so HTMX keeps polling
+        return HttpResponse(f'''
+            <div hx-get="/plan/{pk}/status/"
+                 hx-trigger="every 3s"
+                 hx-swap="outerHTML"
                  style="text-align:center;padding:3rem;">
                 <div class="spinner"></div>
                 <p style="color:#6B8C5A;font-size:1rem;margin-top:1rem;">
@@ -141,7 +148,7 @@ def plan_status(request, pk):
                 </p>
                 <p style="color:#aaa;font-size:.85rem;margin-top:.3rem;">This usually takes 10–20 seconds</p>
             </div>
-        ''', headers={'HX-Reswap': 'innerHTML'})
+        ''')
 
 
 def all_plans(request):

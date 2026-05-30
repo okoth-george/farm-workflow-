@@ -16,7 +16,6 @@
 {% endblock %}
 
 {% block content %}
-<!-- HTMX from CDN -->
 <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 
 <div class="page-hero">
@@ -36,11 +35,11 @@
 <div class="container">
 
   {% if plan.status == 'complete' %}
-    <!-- Plan is already ready (e.g. page refresh) — render directly -->
+    {# Already done — render directly, no polling needed #}
     {% include "planner/partials/plan_results.html" %}
 
   {% else %}
-    <!-- Plan is still generating — show spinner, HTMX polls every 3s -->
+    {# Not ready yet — single div handles polling, no nested hx- attributes #}
     <div id="ai-results"
          hx-get="{% url 'plan_status' plan.pk %}"
          hx-trigger="every 3s"
@@ -55,12 +54,21 @@
         <p style="color:#888;margin-top:.5rem;font-size:.95rem;">
           🌱 AI is analysing your soil, crop, season and budget
         </p>
-        <p style="color:#bbb;margin-top:.3rem;font-size:.85rem;">
-          This usually takes 10–20 seconds
-        </p>
+        <p style="color:#bbb;margin-top:.3rem;font-size:.85rem;">This usually takes 10–20 seconds</p>
       </div>
 
     </div>
+
+    {# When server sends HX-Trigger: planComplete, remove the polling #}
+    <script>
+      document.body.addEventListener('planComplete', function() {
+        var el = document.getElementById('ai-results');
+        if (el) {
+          el.removeAttribute('hx-trigger');
+          htmx.process(el);
+        }
+      });
+    </script>
   {% endif %}
 
 </div>
