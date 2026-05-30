@@ -29,7 +29,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 #DEBUG = True
 DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "t")
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["onrender.com", "localhost", "127.0.0.1"]
 
 
 # Application definition
@@ -52,6 +52,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
 ROOT_URLCONF = 'farmflow.urls'
