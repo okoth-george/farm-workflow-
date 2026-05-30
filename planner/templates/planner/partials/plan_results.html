@@ -112,4 +112,30 @@
   <a href="/plan/new/" class="btn btn-primary">＋ New Plan</a>
   <a href="/plans/" class="btn btn-outline">View All Plans</a>
   <button onclick="window.print()" class="btn btn-secondary">🖨️ Print Plan</button>
+  <button onclick="document.getElementById('delete-modal').style.display='flex'"
+          style="padding:.65rem 1.4rem;border:2px solid #C0392B;border-radius:8px;background:transparent;color:#C0392B;cursor:pointer;font-size:.9rem;font-weight:500;">
+    🗑️ Delete Plan
+  </button>
+</div>
+
+<!-- DELETE MODAL -->
+<div id="delete-modal" style="display:none;position:fixed;inset:0;background:rgba(44,26,14,.7);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:2rem;max-width:400px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="font-size:2.5rem;margin-bottom:1rem;">🗑️</div>
+    <h3 style="font-family:'Playfair Display',serif;color:#2C1A0E;margin-bottom:.5rem;">Delete this plan?</h3>
+    <p style="color:#888;font-size:.9rem;margin-bottom:1.5rem;">This action cannot be undone. The farm plan will be permanently removed.</p>
+    <div style="display:flex;gap:1rem;justify-content:center;">
+      <button onclick="document.getElementById('delete-modal').style.display='none'" 
+              style="padding:.65rem 1.5rem;border:2px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:.9rem;">
+        Cancel
+      </button>
+      <form method="post" action="{% url 'delete_plan' plan.pk %}">
+        {% csrf_token %}
+        <button type="submit"
+                style="padding:.65rem 1.5rem;border:none;border-radius:8px;background:#C0392B;color:#fff;cursor:pointer;font-size:.9rem;font-weight:500;">
+          Yes, Delete
+        </button>
+      </form>
+    </div>
+  </div>
 </div>

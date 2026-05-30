@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 from .models import FarmPlan
 from .ai_engine import generate_farm_plan
 import json
@@ -8,7 +8,6 @@ import threading
 
 
 def _run_ai_in_background(plan_id, farm_data):
-    """Runs in a background thread — calls AI and saves result to DB."""
     try:
         FarmPlan.objects.filter(pk=plan_id).update(status='processing')
         ai_result = generate_farm_plan(farm_data)
@@ -43,7 +42,6 @@ def new_plan(request):
             'additional_notes': request.POST.get('additional_notes', ''),
         }
 
-        # 1. Save plan instantly with status=pending
         plan = FarmPlan.objects.create(
             farmer_name=farm_data['farmer_name'],
             location=farm_data['location'],
@@ -56,7 +54,6 @@ def new_plan(request):
             status='pending',
         )
 
-        # 2. Fire AI call in background thread — don't block the request
         thread = threading.Thread(
             target=_run_ai_in_background,
             args=(plan.pk, farm_data),
@@ -64,7 +61,6 @@ def new_plan(request):
         )
         thread.start()
 
-        # 3. Redirect instantly to results page
         return redirect('plan_detail', pk=plan.pk)
 
     return render(request, 'planner/new_plan.html', {
@@ -96,9 +92,15 @@ def plan_detail(request, pk):
     })
 
 
+@require_POST
+def delete_plan(request, pk):
+    plan = get_object_or_404(FarmPlan, pk=pk)
+    plan.delete()
+    return redirect('all_plans')
+
+
 @require_GET
 def plan_status(request, pk):
-    """HTMX polls this endpoint every 3s to check if AI is done."""
     plan = get_object_or_404(FarmPlan, pk=pk)
 
     if plan.status == 'complete':
@@ -118,7 +120,6 @@ def plan_status(request, pk):
             'total_cost': total_cost,
             'total_inputs': total_inputs,
         })
-        # Stop HTMX polling — we're done
         response['HX-Trigger'] = 'planComplete'
         return response
 
@@ -136,7 +137,6 @@ def plan_status(request, pk):
         return response
 
     else:
-        # Still pending/processing — keep returning spinner so HTMX keeps polling
         return HttpResponse(f'''
             <div hx-get="/plan/{pk}/status/"
                  hx-trigger="every 3s"
