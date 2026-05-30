@@ -29,6 +29,13 @@ class FarmPlan(models.Model):
         ('dry', 'Dry Season (Irrigation)'),
     ]
 
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('complete', 'Complete'),
+        ('error', 'Error'),
+    ]
+
     farmer_name = models.CharField(max_length=100)
     location = models.CharField(max_length=100)
     land_size = models.DecimalField(max_digits=6, decimal_places=2)
@@ -43,6 +50,9 @@ class FarmPlan(models.Model):
     weather_risks = models.TextField(blank=True)
     purchase_orders = models.TextField(blank=True)
     ai_summary = models.TextField(blank=True)
+
+     # Status tracking
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
 
     created_at = models.DateTimeField(auto_now_add=True)
 

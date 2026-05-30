@@ -1,9 +1,28 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.http import require_GET
 from .models import FarmPlan
 from .ai_engine import generate_farm_plan
 import json
+import threading
+
+
+def _run_ai_in_background(plan_id, farm_data):
+    """Runs in a background thread — calls AI and saves result to DB."""
+    try:
+        FarmPlan.objects.filter(pk=plan_id).update(status='processing')
+        ai_result = generate_farm_plan(farm_data)
+        FarmPlan.objects.filter(pk=plan_id).update(
+            planting_schedule=json.dumps(ai_result.get('planting_schedule', [])),
+            input_requirements=json.dumps(ai_result.get('input_requirements', [])),
+            weather_risks=json.dumps(ai_result.get('weather_risks', [])),
+            purchase_orders=json.dumps(ai_result.get('purchase_orders', [])),
+            ai_summary=ai_result.get('ai_summary', ''),
+            status='complete',
+        )
+    except Exception as e:
+        print(f"[FarmFlow] Background AI error: {e}")
+        FarmPlan.objects.filter(pk=plan_id).update(status='error')
 
 
 def index(request):
@@ -24,10 +43,7 @@ def new_plan(request):
             'additional_notes': request.POST.get('additional_notes', ''),
         }
 
-        # Generate AI plan
-        ai_result = generate_farm_plan(farm_data)
-
-        # Save to DB
+        # 1. Save plan instantly with status=pending
         plan = FarmPlan.objects.create(
             farmer_name=farm_data['farmer_name'],
             location=farm_data['location'],
@@ -37,12 +53,18 @@ def new_plan(request):
             season=farm_data['season'],
             budget=farm_data['budget'],
             additional_notes=farm_data['additional_notes'],
-            planting_schedule=json.dumps(ai_result.get('planting_schedule', [])),
-            input_requirements=json.dumps(ai_result.get('input_requirements', [])),
-            weather_risks=json.dumps(ai_result.get('weather_risks', [])),
-            purchase_orders=json.dumps(ai_result.get('purchase_orders', [])),
-            ai_summary=ai_result.get('ai_summary', ''),
+            status='pending',
         )
+
+        # 2. Fire AI call in background thread — don't block the request
+        thread = threading.Thread(
+            target=_run_ai_in_background,
+            args=(plan.pk, farm_data),
+            daemon=True
+        )
+        thread.start()
+
+        # 3. Redirect instantly to results page
         return redirect('plan_detail', pk=plan.pk)
 
     return render(request, 'planner/new_plan.html', {
@@ -54,7 +76,7 @@ def new_plan(request):
 
 def plan_detail(request, pk):
     plan = get_object_or_404(FarmPlan, pk=pk)
-    
+
     planting_schedule = json.loads(plan.planting_schedule) if plan.planting_schedule else []
     input_requirements = json.loads(plan.input_requirements) if plan.input_requirements else []
     weather_risks = json.loads(plan.weather_risks) if plan.weather_risks else []
@@ -72,6 +94,54 @@ def plan_detail(request, pk):
         'total_cost': total_cost,
         'total_inputs': total_inputs,
     })
+
+
+@require_GET
+def plan_status(request, pk):
+    """HTMX polls this endpoint to check if AI is done."""
+    plan = get_object_or_404(FarmPlan, pk=pk)
+
+    if plan.status == 'complete':
+        # Return the full results HTML snippet
+        planting_schedule = json.loads(plan.planting_schedule) if plan.planting_schedule else []
+        input_requirements = json.loads(plan.input_requirements) if plan.input_requirements else []
+        weather_risks = json.loads(plan.weather_risks) if plan.weather_risks else []
+        purchase_orders = json.loads(plan.purchase_orders) if plan.purchase_orders else []
+        total_cost = sum(item.get('cost_kes', 0) for item in planting_schedule)
+        total_inputs = sum(item.get('cost_kes', 0) for item in input_requirements)
+
+        return render(request, 'planner/partials/plan_results.html', {
+            'plan': plan,
+            'planting_schedule': planting_schedule,
+            'input_requirements': input_requirements,
+            'weather_risks': weather_risks,
+            'purchase_orders': purchase_orders,
+            'total_cost': total_cost,
+            'total_inputs': total_inputs,
+        })
+
+    elif plan.status == 'error':
+        return HttpResponse('''
+            <div style="text-align:center;padding:3rem;color:#C0392B;">
+                <div style="font-size:2.5rem;margin-bottom:1rem;">⚠️</div>
+                <h3>AI generation failed</h3>
+                <p style="color:#888;margin-top:.5rem;">Please check your API key and try again.</p>
+                <a href="/plan/new/" style="display:inline-block;margin-top:1rem;padding:.6rem 1.5rem;background:#3D6B35;color:#fff;border-radius:8px;text-decoration:none;">Try Again</a>
+            </div>
+        ''')
+
+    else:
+        # Still pending/processing — return spinner (HTMX will poll again)
+        return HttpResponse('''
+            <div hx-get="" hx-trigger="every 3s" hx-swap="outerHTML"
+                 style="text-align:center;padding:3rem;">
+                <div class="spinner"></div>
+                <p style="color:#6B8C5A;font-size:1rem;margin-top:1rem;">
+                    🌱 AI is analysing your farm data...
+                </p>
+                <p style="color:#aaa;font-size:.85rem;margin-top:.3rem;">This usually takes 10–20 seconds</p>
+            </div>
+        ''', headers={'HX-Reswap': 'innerHTML'})
 
 
 def all_plans(request):
