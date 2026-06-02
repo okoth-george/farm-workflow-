@@ -9,7 +9,7 @@ from farmflow import settings
 
 
 def generate_farm_plan(farm_data: dict) -> dict:
-    """Call Claude API to generate a complete farm plan."""
+    """Call Gemini API to generate a complete farm plan."""
     
     prompt = f"""You are an expert agricultural advisor for East African smallholder farmers.
 

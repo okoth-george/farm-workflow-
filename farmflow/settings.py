@@ -30,7 +30,8 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 #DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "t")
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = [".onrender.com"]
+ALLOWED_HOSTS = [".onrender.com", "localhost", "127.0.0.1"]
+
 
 
 # Application definition
@@ -124,3 +125,4 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")  # Set via env or hardcode for demo
+JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")

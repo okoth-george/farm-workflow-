@@ -5,7 +5,44 @@ from .models import FarmPlan
 from .ai_engine import generate_farm_plan
 import json
 import threading
+# At the top of /app/planner/views.py
+import jwt
+from django.conf import settings
+from django.shortcuts import redirect  # 🔑 Added missing import
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from rest_framework.exceptions import AuthenticationFailed
 
+from .auth_helper import verify_and_extract_express_token
+
+@require_http_methods(["GET"])
+def auth_callback(request):
+    token = request.GET.get('token')
+    
+    try:
+        # 1. Run the imported validation service
+        user_data = verify_and_extract_express_token(token)
+        
+        # 2. Assign the returned clean dictionary variables to the session
+        request.session['user_id'] = user_data['user_id']
+        request.session['username'] = user_data['username']
+        request.session['email'] = user_data['email']
+        
+        # 3. Securely drop an HTTP-Only tracking cookie onto the client browser
+        response = redirect('/')
+        response.set_cookie(
+            'auth_token', 
+            token, 
+            httponly=True, 
+            samesite='Lax', 
+            secure=False # Set to True once production SSL is active
+        )
+        return response
+        
+    except AuthenticationFailed as error:
+        # Catch any security violation raised inside the helper and return it neatly
+        return JsonResponse({'error': str(error)}, status=401)
+    
 
 def _run_ai_in_background(plan_id, farm_data):
     try:
