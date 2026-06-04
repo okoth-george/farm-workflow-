@@ -1,5 +1,12 @@
 from django.db import models
 
+class UserProfile(models.Model):
+    external_id = models.CharField(max_length=100, unique=True)  # ID from Express auth
+    username = models.CharField(max_length=150)
+    
+    
+    def __str__(self):
+        return self.username
 
 class FarmPlan(models.Model):
     CROP_CHOICES = [
@@ -35,7 +42,7 @@ class FarmPlan(models.Model):
         ('complete', 'Complete'),
         ('error', 'Error'),
     ]
-
+    userprofile = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='farm_plans')    
     farmer_name = models.CharField(max_length=100)
     location = models.CharField(max_length=100)
     land_size = models.DecimalField(max_digits=6, decimal_places=2)

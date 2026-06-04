@@ -1,48 +1,56 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse, HttpResponse
-from django.views.decorators.http import require_GET, require_POST
-from .models import FarmPlan
-from .ai_engine import generate_farm_plan
 import json
 import threading
-# At the top of /app/planner/views.py
 import jwt
 from django.conf import settings
-from django.shortcuts import redirect  # 🔑 Added missing import
-from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from rest_framework.exceptions import AuthenticationFailed
 
-from .auth_helper import verify_and_extract_express_token
+from .models import FarmPlan, UserProfile
+from .ai_engine import generate_farm_plan
+from .auth_helpers import verify_and_extract_express_token
+
+
+# 🛡️ SECURITY DECORATOR: Put this right here above your views
+def express_login_required(view_func):
+    """
+    Ensures a user has a valid active session from the Express gateway
+    before letting them view or interact with any planner page.
+    """
+    def _wrapped_view(request, *args, **kwargs):
+        if 'user_id' not in request.session:
+            # Not authenticated? Kick them back out to your React UI gateway
+            return redirect('http://localhost:5173/login')
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
 
 @require_http_methods(["GET"])
 def auth_callback(request):
     token = request.GET.get('token')
-    
     try:
-        # 1. Run the imported validation service
-        user_data = verify_and_extract_express_token(token)
+        # 1. Run the imported validation service (Uses your get_or_create model logic)
+        user_profile = verify_and_extract_express_token(token)
         
-        # 2. Assign the returned clean dictionary variables to the session
-        request.session['user_id'] = user_data['user_id']
-        request.session['username'] = user_data['username']
-        request.session['email'] = user_data['email']
+        # 2. Assign variables to the session tracking engine
+        # CRITICAL: We save the internal UserProfile row ID as our anchor!
+        request.session['user_id'] = user_profile.id
+        request.session['username'] = user_profile.username
         
-        # 3. Securely drop an HTTP-Only tracking cookie onto the client browser
         response = redirect('/')
         response.set_cookie(
             'auth_token', 
             token, 
             httponly=True, 
             samesite='Lax', 
-            secure=False # Set to True once production SSL is active
+            secure=False
         )
         return response
         
     except AuthenticationFailed as error:
-        # Catch any security violation raised inside the helper and return it neatly
         return JsonResponse({'error': str(error)}, status=401)
-    
+
 
 def _run_ai_in_background(plan_id, farm_data):
     try:
@@ -61,11 +69,20 @@ def _run_ai_in_background(plan_id, farm_data):
         FarmPlan.objects.filter(pk=plan_id).update(status='error')
 
 
+@express_login_required
 def index(request):
-    recent_plans = FarmPlan.objects.order_by('-created_at')[:6]
-    return render(request, 'planner/index.html', {'recent_plans': recent_plans})
+    # 🔒 Filtered: Only show the 6 most recent plans belonging to THIS specific user
+    recent_plans = FarmPlan.objects.filter(
+        userprofile_id=request.session['user_id']
+    ).order_by('-created_at')[:6]
+    
+    return render(request, 'planner/index.html', {
+        'recent_plans': recent_plans,
+        'username': request.session.get('username')
+    })
 
 
+@express_login_required
 def new_plan(request):
     if request.method == 'POST':
         farm_data = {
@@ -79,7 +96,12 @@ def new_plan(request):
             'additional_notes': request.POST.get('additional_notes', ''),
         }
 
+        # Fetch the user profile instance from the DB using the active session ID
+        current_user = UserProfile.objects.get(id=request.session['user_id'])
+
+        # 🔒 Linked: Explicitly tie this new plan to the user profile row
         plan = FarmPlan.objects.create(
+            userprofile=current_user,
             farmer_name=farm_data['farmer_name'],
             location=farm_data['location'],
             land_size=farm_data['land_size'],
@@ -107,8 +129,10 @@ def new_plan(request):
     })
 
 
+@express_login_required
 def plan_detail(request, pk):
-    plan = get_object_or_404(FarmPlan, pk=pk)
+    # 🔒 Secured: Ensure a sneaky user cannot view someone else's plan by manually editing the URL ID
+    plan = get_object_or_404(FarmPlan, pk=pk, userprofile_id=request.session['user_id'])
 
     planting_schedule = json.loads(plan.planting_schedule) if plan.planting_schedule else []
     input_requirements = json.loads(plan.input_requirements) if plan.input_requirements else []
@@ -130,15 +154,19 @@ def plan_detail(request, pk):
 
 
 @require_POST
+@express_login_required
 def delete_plan(request, pk):
-    plan = get_object_or_404(FarmPlan, pk=pk)
+    # 🔒 Secured: Prevent unauthorized deletions across different accounts
+    plan = get_object_or_404(FarmPlan, pk=pk, userprofile_id=request.session['user_id'])
     plan.delete()
     return redirect('all_plans')
 
 
 @require_GET
+@express_login_required
 def plan_status(request, pk):
-    plan = get_object_or_404(FarmPlan, pk=pk)
+    # 🔒 Secured: Ensure background polling only exposes your own operational data
+    plan = get_object_or_404(FarmPlan, pk=pk, userprofile_id=request.session['user_id'])
 
     if plan.status == 'complete':
         planting_schedule = json.loads(plan.planting_schedule) if plan.planting_schedule else []
@@ -188,6 +216,8 @@ def plan_status(request, pk):
         ''')
 
 
+@express_login_required
 def all_plans(request):
-    plans = FarmPlan.objects.order_by('-created_at')
+    # 🔒 Filtered: Complete list of plans belonging exclusively to this account session
+    plans = FarmPlan.objects.filter(userprofile_id=request.session['user_id']).order_by('-created_at')
     return render(request, 'planner/all_plans.html', {'plans': plans})
