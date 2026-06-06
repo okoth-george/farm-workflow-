@@ -11,7 +11,11 @@ services:
       - DEBUG=1
       - SECRET_KEY=your_local_secret
       # 🔌 Tell Django how to reach your separate Express container on your laptop:
-      - EXPRESS_API_BASE_URL=${EXPRESS_API_BASE_URL}
+      - EXPRESS_API_BASE_URL=http://host.docker.internal:3000 
+      -
+    # ⬇️ ADD THIS BLOCK RIGHT HERE ⬇️
+    extra_hosts:  
+      - "host.docker.internal:host-gateway"  
       
     volumes:
       # 👇 Mount to a dedicated data directory inside the container
