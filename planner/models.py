@@ -1,9 +1,9 @@
 from django.db import models
 
 class UserProfile(models.Model):
-    external_id = models.CharField(max_length=100, unique=True)  # ID from Express auth
+    external_id = models.IntegerField(unique=True) 
     username = models.CharField(max_length=150)
-    
+    created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
         return self.username

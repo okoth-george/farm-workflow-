@@ -1,18 +1,17 @@
 import json
 import threading
-import jwt
+import requests
 from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
-from rest_framework.exceptions import AuthenticationFailed
-
 from .models import FarmPlan, UserProfile
 from .ai_engine import generate_farm_plan
-from .auth_helpers import verify_and_extract_express_token
+import os  # 👈 Make sure os is imported at the top of your file
+from django.core.exceptions import ImproperlyConfigured
 
 
-# 🛡️ SECURITY DECORATOR: Put this right here above your views
+# 🛡️ SECURITY DECORATOR
 def express_login_required(view_func):
     """
     Ensures a user has a valid active session from the Express gateway
@@ -28,31 +27,71 @@ def express_login_required(view_func):
 
 @require_http_methods(["GET"])
 def auth_callback(request):
-    token = request.GET.get('token')
-    try:
-        # 1. Run the imported validation service (Uses your get_or_create model logic)
-        user_profile = verify_and_extract_express_token(token)
+    """
+    Production-Ready Auth Callback.
+    Bypasses hardcoded URLs by fetching the Identity Provider address
+    from system environment variables.
+    """
+    exchange_code = request.GET.get('code')
+    
+    if not exchange_code:
+        return JsonResponse({'error': 'Security handshake failed: Authorization code missing.'}, status=400)
+    
+    # DYNAMIC CONFIGURATION: Fetch the Express API root from environment variables
+    express_api_base = os.environ.get('EXPRESS_API_BASE_URL')
+    
+    if not express_api_base:
+        print("[FarmFlow Critical Error] EXPRESS_API_BASE_URL environment variable is missing!")
+        return JsonResponse({'error': 'Server configuration error.'}, status=500)
         
-        # 2. Assign variables to the session tracking engine
-        # CRITICAL: We save the internal UserProfile row ID as our anchor!
+    try:
+        # Construct the exchange endpoint dynamically without trailing slash worries
+        express_exchange_url = f"{express_api_base.rstrip('/')}/api/users/exchange-code"
+        
+        #  SERVER-TO-SERVER REDEMPTION over HTTPS (Production) or HTTP (Local)
+        response = requests.post(
+            express_exchange_url, 
+            json={'code': exchange_code},
+            timeout=7  # Slightly higher timeout for cross-server production networks
+        )
+        
+        if response.status_code != 200:
+            return JsonResponse({'error': 'Authorization code was rejected or expired.'}, status=401)
+            
+        data = response.json()
+        node_user = data.get('user', {})
+        node_id = node_user.get('id')
+        node_username = node_user.get('username')
+        
+        if not node_id or not node_username:
+            return JsonResponse({'error': 'Invalid payload data structure from Identity Provider.'}, status=400)
+        
+        # 🔄 JUST-IN-TIME PROVISIONING
+        user_profile, created = UserProfile.objects.get_or_create(
+            external_id=node_id,
+            defaults={'username': node_username}
+        )
+        
+        if not created and user_profile.username != node_username:
+            user_profile.username = node_username
+            user_profile.save()
+            
+        # 🔑 STATEFUL SESSION LOCKING
         request.session['user_id'] = user_profile.id
         request.session['username'] = user_profile.username
         
-        response = redirect('/')
-        response.set_cookie(
-            'auth_token', 
-            token, 
-            httponly=True, 
-            samesite='Lax', 
-            secure=False
-        )
-        return response
+        return redirect('/')
         
-    except AuthenticationFailed as error:
-        return JsonResponse({'error': str(error)}, status=401)
-
+    except requests.exceptions.RequestException as e:
+        print(f"[FarmFlow Critical] Cross-server auth line connection failed: {e}")
+        return JsonResponse({'error': 'Authentication microservices temporarily out of sync.'}, status=503)
+    
 
 def _run_ai_in_background(plan_id, farm_data):
+    """
+    3. Application State and Core Business Logic
+    Runs asynchronous Gemini instructions inside an isolated background daemon worker thread.
+    """
     try:
         FarmPlan.objects.filter(pk=plan_id).update(status='processing')
         ai_result = generate_farm_plan(farm_data)
@@ -71,7 +110,7 @@ def _run_ai_in_background(plan_id, farm_data):
 
 @express_login_required
 def index(request):
-    # 🔒 Filtered: Only show the 6 most recent plans belonging to THIS specific user
+    # 🔒 Filtered: Only show the 6 most recent plans belonging to THIS specific profile
     recent_plans = FarmPlan.objects.filter(
         userprofile_id=request.session['user_id']
     ).order_by('-created_at')[:6]
@@ -96,10 +135,9 @@ def new_plan(request):
             'additional_notes': request.POST.get('additional_notes', ''),
         }
 
-        # Fetch the user profile instance from the DB using the active session ID
         current_user = UserProfile.objects.get(id=request.session['user_id'])
 
-        # 🔒 Linked: Explicitly tie this new plan to the user profile row
+        # 🔒 Linked: Explicitly tie this plan to the active session owner
         plan = FarmPlan.objects.create(
             userprofile=current_user,
             farmer_name=farm_data['farmer_name'],
@@ -131,7 +169,7 @@ def new_plan(request):
 
 @express_login_required
 def plan_detail(request, pk):
-    # 🔒 Secured: Ensure a sneaky user cannot view someone else's plan by manually editing the URL ID
+    # 🔒 Secured: Multi-tenant scope guard check
     plan = get_object_or_404(FarmPlan, pk=pk, userprofile_id=request.session['user_id'])
 
     planting_schedule = json.loads(plan.planting_schedule) if plan.planting_schedule else []
@@ -156,7 +194,6 @@ def plan_detail(request, pk):
 @require_POST
 @express_login_required
 def delete_plan(request, pk):
-    # 🔒 Secured: Prevent unauthorized deletions across different accounts
     plan = get_object_or_404(FarmPlan, pk=pk, userprofile_id=request.session['user_id'])
     plan.delete()
     return redirect('all_plans')
@@ -165,7 +202,10 @@ def delete_plan(request, pk):
 @require_GET
 @express_login_required
 def plan_status(request, pk):
-    # 🔒 Secured: Ensure background polling only exposes your own operational data
+    """
+    5. UI Rendering and Frontend Delivery (HTMX Engine)
+    Serves asynchronous partial chunks over the line directly to HTMX swap listeners.
+    """
     plan = get_object_or_404(FarmPlan, pk=pk, userprofile_id=request.session['user_id'])
 
     if plan.status == 'complete':
@@ -218,6 +258,5 @@ def plan_status(request, pk):
 
 @express_login_required
 def all_plans(request):
-    # 🔒 Filtered: Complete list of plans belonging exclusively to this account session
     plans = FarmPlan.objects.filter(userprofile_id=request.session['user_id']).order_by('-created_at')
     return render(request, 'planner/all_plans.html', {'plans': plans})
