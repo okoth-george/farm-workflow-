@@ -1,7 +1,7 @@
 from django.db import models
 
 class UserProfile(models.Model):
-    external_id = models.IntegerField(unique=True) 
+    external_id = models.CharField(max_length=100, unique=True)
     username = models.CharField(max_length=150)
     created_at = models.DateTimeField(auto_now_add=True)
     
