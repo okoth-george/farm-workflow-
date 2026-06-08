@@ -1,7 +1,7 @@
 from django.urls import include, path
 from . import views
 
-
+#patterns
 urlpatterns = [
     path('', views.index, name='index'),
     path('plan/new/', views.new_plan, name='new_plan'),
