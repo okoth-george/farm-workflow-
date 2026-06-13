@@ -261,6 +261,7 @@ def all_plans(request):
     plans = FarmPlan.objects.filter(userprofile_id=request.session['user_id']).order_by('-created_at')
     return render(request, 'planner/all_plans.html', {'plans': plans})
 
+@require_GET
 def health_check(request):
     """
     Health check endpoint for monitoring and uptime verification.
