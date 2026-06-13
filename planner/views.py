@@ -260,3 +260,10 @@ def plan_status(request, pk):
 def all_plans(request):
     plans = FarmPlan.objects.filter(userprofile_id=request.session['user_id']).order_by('-created_at')
     return render(request, 'planner/all_plans.html', {'plans': plans})
+
+def health_check(request):
+    """
+    Health check endpoint for monitoring and uptime verification.
+    Returns a simple JSON response indicating the service is operational.
+    """
+    return JsonResponse({'status': 'ok', 'message': 'FarmFlow Planner service is running.'})

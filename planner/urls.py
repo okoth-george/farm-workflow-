@@ -10,4 +10,5 @@ urlpatterns = [
     path('plan/<int:pk>/delete/', views.delete_plan, name='delete_plan'),
     path('plans/', views.all_plans, name='all_plans'),
     path('auth/callback/', views.auth_callback, name='auth_callback'),
+    path('health/', views.health_check, name='health_check')
 ]
