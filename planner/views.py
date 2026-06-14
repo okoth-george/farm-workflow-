@@ -45,7 +45,7 @@ def auth_callback(request):
         return JsonResponse({'error': 'Server configuration error.'}, status=500)
         
     try:
-        # Construct the exchange endpoint dynamically without trailing slash worries
+        # Construct the exchange endpoint dynamically without trailing slash worries .
         express_exchange_url = f"{express_api_base.rstrip('/')}/api/users/exchange-code"
         
         #  SERVER-TO-SERVER REDEMPTION over HTTPS (Production) or HTTP (Local)
