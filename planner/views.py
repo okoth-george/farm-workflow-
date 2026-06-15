@@ -20,7 +20,7 @@ def express_login_required(view_func):
     def _wrapped_view(request, *args, **kwargs):
         if 'user_id' not in request.session:
             # Not authenticated? Kick them back out to your React UI gateway
-            return redirect('http://localhost:5173/login')
+            return redirect('https://auth-service-five-pi.vercel.app/')
         return view_func(request, *args, **kwargs)
     return _wrapped_view
 
